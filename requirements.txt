@@ -5,3 +5,5 @@ matplotlib
 xrayutilities
 scikit-learn
 scipy
+cv2
+seaborn
