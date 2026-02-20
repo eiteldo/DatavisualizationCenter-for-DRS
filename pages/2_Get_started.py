@@ -66,11 +66,12 @@ st.markdown('''
 
 with st.expander("See image"):
     image = Image.open('TEM_example_image.jpg')
-    st.image(image, caption=None, use_column_width='always')
+    st.image(image, caption=None)
 
 st.markdown('''
     After uploading your file, you can directly see the analyzed data from your image.
     For downloading the image use the 'Download image' button.
     ''')
+
 
 
