@@ -125,7 +125,7 @@ def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_anal
         f"  Scan lines tested : {len(scan_results)}"
     )
                      
-    ax4.text(0.05, 0.95, stats, transform=ax3.transAxes, fontsize=9,
+    ax3.text(0.05, 0.95, stats, transform=ax3.transAxes, fontsize=9,
              verticalalignment="top", fontfamily="monospace",
              bbox=dict(boxstyle="round", facecolor="lightgray", alpha=0.8))
 
