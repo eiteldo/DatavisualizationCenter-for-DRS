@@ -6,3 +6,4 @@ xrayutilities
 scikit-learn
 scipy
 opencv-python-headless
+seaborn
