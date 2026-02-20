@@ -8,6 +8,15 @@ import seaborn as sns
 from scipy.signal import find_peaks, savgol_filter
 import streamlit as st
 
+# page config 
+st.set_page_config(
+    page_title="TEM analysis tool",
+    page_icon="🔎",
+    layout="wide",
+)
+
+st.title("🔎 TEM analysis tool")
+
 
 def load_image_from_bytes(file_bytes: bytes) -> np.ndarray:
     arr = np.frombuffer(file_bytes, dtype=np.uint8)
