@@ -17,9 +17,9 @@ st.title("📈 UV-Vis analysis tool")
 # build file uploader and make dataframe from uploaded file
 uploaded_file = st.file_uploader("Choose a file")
 
-  if uploaded is None:
-        st.info("Upload a TEM image to begin analysis.")
-        return
+if uploaded is None:
+    st.info("Upload a TEM image to begin analysis.")
+    return
 
 data = pd.read_csv(uploaded_file, sep=';', skiprows=1)
 st.write(data)
@@ -297,4 +297,5 @@ Slope: {slope_m}
 '''
 
     st.download_button('Download values as text', text_contents, file_name=f'{name_of_file}',mime="text")
+
 
