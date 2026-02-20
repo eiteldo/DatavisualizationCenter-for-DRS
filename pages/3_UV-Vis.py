@@ -28,7 +28,7 @@ def find_tauc_region(energy, mod, window_pts, sigma=2):
     """
     Finds the steep rising linear edge (Tauc fit).
     Score = R² × slope² — favours steep, linear windows.
-    Ignores shallow Urbach tail automatically.
+    Ignores shallow Urbach tail.
     Fit done on original unsmoothed data.
     """
     mod_smooth = gaussian_filter1d(mod, sigma=sigma)
@@ -131,8 +131,8 @@ with c2:
     window_pts = st.slider(
         "Window width (data points)",
         min_value=10, max_value=150, value=30, step=5,
-        help="Number of consecutive points used per fit window. "
-             "Adjust to match your instrument's data density."
+        help="Number of consecutive points used for each fitting window. "
+             "Adjust to match the data of your instrument."
     )
 with c3:
     name_of_file = st.text_input("File name for saving (without extension):")
@@ -216,11 +216,10 @@ if st.button("Start calculation"):
     ax.scatter(x_best_m, y_best_m, color='limegreen', s=12, zorder=3,
                label=f'Makula baseline ({x_best_m[0]:.2f}–{x_best_m[-1]:.2f} eV)')
     ax.plot(x_fit, y_pred_tauc, color='red', linewidth=1.5,
-            label=f'Tauc fit  R²={r2_tauc:.4f}  →  {intersection_tauc} eV')
-    ax.plot(x_fit, y_pred_m, color='darkgreen', linewidth=1.5, linestyle='--',
-            label=f'Makula baseline fit  R²={r2_m:.4f}')
+            label=f'Tauc fit =  {intersection_tauc} eV')
+    ax.plot(x_fit, y_pred_m, color='darkgreen', linewidth=1.5, linestyle='--')
     ax.axvline(x=intersection_makula, color='green', linewidth=1.2,
-               label=f'Makula intersection = {intersection_makula} eV')
+               label=f'Makula fit = {intersection_makula} eV')
 
     ax.set_xlabel("Energy (eV)")
     ax.set_ylabel(fr"$(f(R)\cdot h\nu)^{{{transition}}}$")
@@ -264,3 +263,4 @@ Makula baseline fit:
 """
     st.download_button("Download values (TXT)", data=text_contents,
                        file_name=f'{fname}.txt', mime="text/plain")
+
