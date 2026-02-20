@@ -120,15 +120,14 @@ def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_anal
         f"Layer Spacing\n"
         f"  Mean : {layer_analysis['avg_distance']:.2f} ± {layer_analysis['std_distance']:.2f} nm\n"
         f"  CV   : {cv_pct:.1f}%\n"
-        f"  Reg. score  : {layer_analysis['regularity_score']:.1f}\n\n"
         f"Scale\n"
         f"  {px_to_nm:.4f} nm/px\n"
         f"  Scan lines tested : {len(scan_results)}"
     )
                      
-    #ax4.text(0.05, 0.95, stats, transform=ax6.transAxes, fontsize=9,
-             #verticalalignment="top", fontfamily="monospace",
-             #bbox=dict(boxstyle="round", facecolor="lightgray", alpha=0.8))
+    ax4.text(0.05, 0.95, stats, transform=ax3.transAxes, fontsize=9,
+             verticalalignment="top", fontfamily="monospace",
+             bbox=dict(boxstyle="round", facecolor="lightgray", alpha=0.8))
 
     plt.tight_layout()
     return fig
