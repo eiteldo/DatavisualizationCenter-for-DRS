@@ -81,7 +81,7 @@ def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_anal
     scores = [r["score"] for r in scan_results]
     peak_counts = [r["num_peaks"] for r in scan_results]
 
-    # 1 – Original image
+    # Original image
     ax1 = fig.add_subplot(1, 3, 1)
     ax1.imshow(img, cmap="gray")
     ax1.axhline(optimal_y, color="gold", linestyle="--", linewidth=2,
@@ -90,7 +90,7 @@ def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_anal
     ax1.legend(fontsize=8)
     ax1.grid(True, color="red", linestyle="--", alpha=0.3)
 
-    # 2 – Profile + peaks
+    # Profile and peaks
     ax2 = fig.add_subplot(1, 3, 2)
     x_range = range(len(smoothed_slice))
     ax2.plot(smoothed_slice, color="darkslategray", linewidth=2)
@@ -105,9 +105,7 @@ def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_anal
     ax2.grid(True, linestyle="--", color="gray", alpha=0.3)
 
  
-  
-
-    # 6 – Stats text
+    # Stats text
     ax3 = fig.add_subplot(1, 3, 3)
     ax3.axis("off")
     cv_pct = (layer_analysis["std_distance"] / layer_analysis["avg_distance"] * 100
@@ -127,9 +125,10 @@ def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_anal
         f"  {px_to_nm:.4f} nm/px\n"
         f"  Scan lines tested : {len(scan_results)}"
     )
-    ax4.text(0.05, 0.95, stats, transform=ax6.transAxes, fontsize=9,
-             verticalalignment="top", fontfamily="monospace",
-             bbox=dict(boxstyle="round", facecolor="lightgray", alpha=0.8))
+                     
+    #ax4.text(0.05, 0.95, stats, transform=ax6.transAxes, fontsize=9,
+             #verticalalignment="top", fontfamily="monospace",
+             #bbox=dict(boxstyle="round", facecolor="lightgray", alpha=0.8))
 
     plt.tight_layout()
     return fig
