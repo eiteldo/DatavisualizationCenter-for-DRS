@@ -139,8 +139,7 @@ def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_anal
 
 
 def run_tem_analysis():
-    st.header("TEM Greyscale Profile Analyzer")
-
+ 
     # Sidebar settings
     with st.sidebar:
         st.header("Analysis Settings")
