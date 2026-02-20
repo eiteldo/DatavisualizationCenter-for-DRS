@@ -82,7 +82,7 @@ def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_anal
     peak_counts = [r["num_peaks"] for r in scan_results]
 
     # 1 – Original image
-    ax1 = fig.add_subplot(2, 3, 1)
+    ax1 = fig.add_subplot(1, 3, 1)
     ax1.imshow(img, cmap="gray")
     ax1.axhline(optimal_y, color="gold", linestyle="--", linewidth=2,
                 label=f"Optimal line (y={optimal_y})")
@@ -91,7 +91,7 @@ def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_anal
     ax1.grid(True, color="red", linestyle="--", alpha=0.3)
 
     # 2 – Profile + peaks
-    ax2 = fig.add_subplot(2, 3, 2)
+    ax2 = fig.add_subplot(1, 3, 2)
     x_range = range(len(smoothed_slice))
     ax2.plot(smoothed_slice, color="darkslategray", linewidth=2)
     ax2.fill_between(x_range, smoothed_slice, 0, color="lightyellow", alpha=0.5)
@@ -104,41 +104,12 @@ def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_anal
     ax2.set_title(f"Layer Profile ({len(peaks)} peaks)")
     ax2.grid(True, linestyle="--", color="gray", alpha=0.3)
 
-    # 3 – Quality scores
-    ax3 = fig.add_subplot(2, 3, 3)
-    ax3.plot(y_positions, scores, "b-o", linewidth=2, markersize=4)
-    ax3.axvline(optimal_y, color="gold", linestyle="--", linewidth=2)
-    ax3.set_xlabel("Y Position (px)")
-    ax3.set_ylabel("Quality Score")
-    ax3.set_title("Scan Line Quality")
-    ax3.grid(True, alpha=0.3)
-
-    # 4 – Peak count
-    ax4 = fig.add_subplot(2, 3, 4)
-    ax4.plot(y_positions, peak_counts, "g-s", linewidth=2, markersize=4)
-    ax4.axvline(optimal_y, color="gold", linestyle="--", linewidth=2)
-    ax4.set_xlabel("Y Position (px)")
-    ax4.set_ylabel("Number of Peaks")
-    ax4.set_title("Peak Count vs Position")
-    ax4.grid(True, alpha=0.3)
-
-    # 5 – Spacing histogram
-    ax5 = fig.add_subplot(2, 3, 5)
-    dists = layer_analysis["distances"]
-    if len(dists) > 0:
-        ax5.hist(dists, bins=max(3, len(dists) // 2), alpha=0.7,
-                 color="skyblue", edgecolor="black")
-        ax5.axvline(layer_analysis["avg_distance"], color="red", linestyle="--",
-                    linewidth=2, label=f'Mean: {layer_analysis["avg_distance"]:.2f} nm')
-        ax5.legend(fontsize=8)
-    ax5.set_xlabel("Layer Spacing (nm)")
-    ax5.set_ylabel("Frequency")
-    ax5.set_title("Spacing Distribution")
-    ax5.grid(True, alpha=0.3)
+ 
+  
 
     # 6 – Stats text
-    ax6 = fig.add_subplot(2, 3, 6)
-    ax6.axis("off")
+    ax3 = fig.add_subplot(1, 3, 3)
+    ax3.axis("off")
     cv_pct = (layer_analysis["std_distance"] / layer_analysis["avg_distance"] * 100
               if layer_analysis["avg_distance"] > 0 else 0)
     stats = (
@@ -156,7 +127,7 @@ def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_anal
         f"  {px_to_nm:.4f} nm/px\n"
         f"  Scan lines tested : {len(scan_results)}"
     )
-    ax6.text(0.05, 0.95, stats, transform=ax6.transAxes, fontsize=9,
+    ax4.text(0.05, 0.95, stats, transform=ax6.transAxes, fontsize=9,
              verticalalignment="top", fontfamily="monospace",
              bbox=dict(boxstyle="round", facecolor="lightgray", alpha=0.8))
 
