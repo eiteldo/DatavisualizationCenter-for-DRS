@@ -25,9 +25,10 @@ if uploaded_file is None:
 data = pd.read_csv(uploaded_file, sep=';', skiprows=1)
 st.write(data)
 
-# replace comma decimals with dots, then cast to float
-data['nm'] = data['nm'].str.replace(',', '.', regex=False).astype(float)
-data['f(R)'] = data['f(R)'].str.replace(',', '.', regex=False).astype(float)
+for col in ['nm', 'f(R)']:
+    if data[col].dtype == object:
+        data[col] = data[col].str.replace(',', '.', regex=False)
+    data[col] = pd.to_numeric(data[col], errors='coerce')
 
 # Calculate photon energy (eV) from wavelength (nm)
 energy = (1.2398 / (data['nm'].values / 1000))  # returns numpy array
@@ -245,3 +246,4 @@ Y-offset plot values:
         file_name=f'{fname}.txt',
         mime="text/plain"
     )
+
