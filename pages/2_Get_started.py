@@ -57,23 +57,19 @@ with st.expander("See image"):
 
 # Explanation on how to use the Raman plotter
 
-st.header("How to use the Raman plotter")
+st.header("How to use the TEM analysis tool")
 
 
 st.markdown('''
-    When you run the application, upload a single or multiple files you want to use. The file should have the following layout:
+    When you run the application, upload a single file you want to use. The file has to be an image of the layers (graphene or similar) you want to analyze:
     ''')
 
 with st.expander("See image"):
-    image = Image.open('file_raman.png')
+    image = Image.open('TEM_example_image.png')
     st.image(image, caption=None, use_column_width='always')
 
 st.markdown('''
-    After uploading your file, you can see the displayed graph from your data. Type a file name if you want to download the graph.
+    After uploading your file, you can directly see the analyzed data from your image.
     For downloading the image use the 'Download image' button.
     ''')
-
-with st.expander("See image"):  
-    image = Image.open('graph_and_button_raman.png')
-    st.image(image, caption=None, use_column_width='always')
 
