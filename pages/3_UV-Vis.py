@@ -5,72 +5,88 @@ import pandas as pd
 import streamlit as st
 from scipy.ndimage import gaussian_filter1d
 
-# page config
+# ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(page_title="UV-Vis analysis tool", page_icon="📈", layout="wide")
 st.title("📈 UV-Vis analysis tool")
 
-# HELPERS
+# ─────────────────────────────────────────────────────────────────────────────
+# CORE ALGORITHM
+# ─────────────────────────────────────────────────────────────────────────────
 
 def compute_modified(f_r, energy_arr, n):
     result = (f_r * energy_arr) ** n
     return np.where(np.isfinite(result), result, 0.0)
 
 
-def fit_line(xb, yb):
-    """np.polyfit + R² for a pair of arrays."""
+def find_linear_region(energy, mod, window_pts, sigma=2):
+    """
+    Automatically finds the most prominent linear region in a Tauc/Makula plot.
+
+    Scoring = R² × slope² × window_pts
+      - R²        → penalises non-linear windows
+      - slope²    → favours steep rising edges, ignores shallow Urbach tail
+                    and flat baseline; squared so sign doesn't matter but
+                    large slopes dominate
+      - window_pts → all windows are the same width so this is constant,
+                     but kept explicit for clarity
+
+    Steps:
+      1. Light Gaussian smoothing to reduce noise before scoring.
+      2. Slide a fixed-width window across the full energy axis.
+      3. Score every window.
+      4. Pick the highest-scoring window.
+      5. Fit the line on the ORIGINAL (unsmoothed) data at that position.
+
+    Returns (slope, intercept, r2, window_pts, x_subset, y_subset) or None.
+    """
+    n = len(energy)
+    if n < window_pts:
+        return None
+
+    mod_smooth = gaussian_filter1d(mod, sigma=sigma)
+
+    best_score = -np.inf
+    best_idx = None
+
+    for i in range(n - window_pts + 1):
+        xb = energy[i : i + window_pts]
+        yb = mod_smooth[i : i + window_pts]
+
+        slope, intercept = np.polyfit(xb, yb, 1)
+
+        # only consider windows with a positive slope (rising edge)
+        if slope <= 0:
+            continue
+
+        ss_res = np.sum((yb - (slope * xb + intercept)) ** 2)
+        ss_tot = np.sum((yb - yb.mean()) ** 2)
+        if ss_tot == 0:
+            continue
+
+        r2 = 1.0 - ss_res / ss_tot
+        score = r2 * (slope ** 2) * window_pts
+
+        if score > best_score:
+            best_score = score
+            best_idx = i
+
+    if best_idx is None:
+        return None
+
+    # fit on original unsmoothed data
+    xb = energy[best_idx : best_idx + window_pts]
+    yb = mod[best_idx : best_idx + window_pts]
     slope, intercept = np.polyfit(xb, yb, 1)
     ss_res = np.sum((yb - (slope * xb + intercept)) ** 2)
     ss_tot = np.sum((yb - yb.mean()) ** 2)
     r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
-    return slope, intercept, r2
+
+    return slope, intercept, r2, window_pts, xb.copy(), yb.copy()
 
 
-def method_derivative(energy, mod, x_min, x_max, min_pts, sigma, threshold_pct):
-    # 1. Crop to slider range
-    mask_range = (energy >= x_min) & (energy <= x_max)
-    xe = energy[mask_range]
-    ye = mod[mask_range]
-
-    if len(xe) < min_pts:
-        return None
-
-    # 2. Smooth
-    ye_smooth = gaussian_filter1d(ye, sigma=sigma)
-
-    # 3. Second derivative via central differences
-    d2y = np.gradient(np.gradient(ye_smooth, xe), xe)
-
-    # 4. Threshold: accept points where curvature is small
-    threshold = (threshold_pct / 100.0) * np.max(np.abs(d2y))
-    linear_mask = np.abs(d2y) < threshold
-
-    # Find longest contiguous True run
-    best_start, best_len = 0, 0
-    cur_start, cur_len = 0, 0
-    for k, val in enumerate(linear_mask):
-        if val:
-            if cur_len == 0:
-                cur_start = k
-            cur_len += 1
-            if cur_len > best_len:
-                best_len = cur_len
-                best_start = cur_start
-        else:
-            cur_len = 0
-
-    if best_len < min_pts:
-        return None
-
-    # 5. Fit line to the found segment (using original unsmoothed data)
-    xb = xe[best_start : best_start + best_len]
-    yb = ye[best_start : best_start + best_len]
-    slope, intercept, r2 = fit_line(xb, yb)
-
-    return slope, intercept, r2, best_len, xb.copy(), yb.copy()
-
-
-
-# FILE UPLOAD
+# ─────────────────────────────────────────────────────────────────────────────
+# FILE UPLOAD & DATA
+# ─────────────────────────────────────────────────────────────────────────────
 
 uploaded_file = st.file_uploader("Choose a CSV file")
 if uploaded_file is None:
@@ -87,46 +103,34 @@ for col in ['nm', 'f(R)']:
 
 energy = 1.2398 / (data['nm'].values / 1000)
 
+# ─────────────────────────────────────────────────────────────────────────────
+# USER INPUTS
+# ─────────────────────────────────────────────────────────────────────────────
 
-# INPUTS
+st.markdown("---")
+c1, c2, c3 = st.columns(3)
 
-col1, col2 = st.columns(2)
-with col1:
+with c1:
     transition = st.number_input(
-        "Type of transition (0.5 = indirect allowed, 2 = direct allowed):",
-        value=0.5, step=0.5
+        "Type of transition",
+        value=0.5, step=0.5,
+        help="0.5 = indirect allowed, 2 = direct allowed"
     )
-with col2:
+with c2:
+    window_pts = st.slider(
+        "Window width (data points)",
+        min_value=10, max_value=150, value=30, step=5,
+        help="Number of consecutive data points used for fitting. "
+             "Increase for instruments with higher data density, "
+             "decrease if spectra are short."
+    )
+with c3:
     name_of_file = st.text_input("File name for saving (without extension):")
 
 modified_function = compute_modified(data['f(R)'].values, energy, transition)
 
-# Method parameters
+# ── Preview plot ──────────────────────────────────────────────────────────────
 st.markdown("---")
-st.subheader("⚙️ Derivative method parameters")
-st.caption(
-    "The method smooths the data, computes the second derivative (curvature), "
-    "and finds the longest region within your selected range where curvature is "
-    "below the threshold. The line is then fit to that region using the original data."
-)
-
-c1, c2, c3, c4 = st.columns(4)
-with c1:
-    sigma = st.slider("Smoothing (sigma)", 1, 15, 3,
-        help="Gaussian smoothing before differentiating. Increase for noisy spectra.")
-with c2:
-    threshold_pct = st.slider("Linearity threshold (%)", 1, 50, 20,
-        help="Max allowed curvature as % of peak curvature in range. Lower = stricter linear region.")
-with c3:
-    min_pts_tauc = st.number_input("Min points — Tauc fit", min_value=5, value=15, step=5)
-with c4:
-    min_pts_makula = st.number_input("Min points — Makula fit", min_value=5, value=15, step=5)
-    
-# INITIAL PREVIEW PLOT
-
-st.markdown("---")
-st.markdown("**Select the fitting ranges for both fits using the sliders below the graph.**")
-
 fig0, ax0 = plt.subplots(figsize=(10, 6))
 ax0.scatter(energy, modified_function, s=6, color='steelblue')
 ax0.set_xlabel("Energy (eV)")
@@ -135,129 +139,121 @@ ax0.set_xticks(np.arange(1.0, 7.0, 0.25))
 ax0.set_ylim([0, 10]); ax0.set_xlim([1.6, 6.2]); ax0.grid(True)
 st.pyplot(fig0); plt.close(fig0)
 
-# RANGE SLIDERS
-
-e_min, e_max = float(energy.min()), float(energy.max())
-
-tauc_fit_range = st.slider(
-    "Range for Tauc fit  🟠",
-    min_value=e_min, max_value=e_max,
-    value=(e_min, e_max), step=0.01, key='tauc'
-)
-makula_fit_range = st.slider(
-    "Range for Makula (y-offset) fit  🟢",
-    min_value=e_min, max_value=e_max,
-    value=(e_min, e_max), step=0.01, key='makula'
-)
-
-# Preview plot with range markers & curvature overlay
-fig1, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=True,
-                           gridspec_kw={'height_ratios': [3, 1]})
-
-ax_main, ax_curv = axes
-
-# Main scatter
-ax_main.scatter(energy, modified_function, s=6, color='steelblue', label='Data')
-ax_main.set_ylabel(fr"$(f(R)\cdot h\nu)^{{{transition}}}$")
-ax_main.set_ylim([0, 10]); ax_main.set_xlim([1.6, 6.2]); ax_main.grid(True)
-ax_main.text(1.72, 9.1,
-             f'Tauc range:   {tauc_fit_range[0]:.2f} – {tauc_fit_range[1]:.2f} eV\n'
-             f'Makula range: {makula_fit_range[0]:.2f} – {makula_fit_range[1]:.2f} eV',
-             fontsize=8, family='monospace')
-for x in tauc_fit_range:
-    ax_main.axvline(x=x, color='orange', linestyle='--', linewidth=1)
-for x in makula_fit_range:
-    ax_main.axvline(x=x, color='green', linestyle='--', linewidth=1)
-
-# Curvature subplot
-ye_smooth = gaussian_filter1d(modified_function, sigma=sigma)
-d2y_full  = np.gradient(np.gradient(ye_smooth, energy), energy)
-ax_curv.plot(energy, np.abs(d2y_full), color='purple', linewidth=0.8, label='|d²y/dx²|')
-ax_curv.set_ylabel("|d²y/dx²|", fontsize=8)
-ax_curv.set_xlabel("Energy (eV)")
-ax_curv.set_xlim([1.6, 6.2]); ax_curv.grid(True)
-ax_curv.set_xticks(np.arange(1.0, 7.0, 0.5))
-ax_curv.legend(fontsize=7)
-for x in tauc_fit_range:
-    ax_curv.axvline(x=x, color='orange', linestyle='--', linewidth=1)
-for x in makula_fit_range:
-    ax_curv.axvline(x=x, color='green', linestyle='--', linewidth=1)
-
-st.pyplot(fig1); plt.close(fig1)
-
-st.caption(
-    "**Reading the curvature plot:** The linear region is where |d²y/dx²| is lowest "
-    "(flattest). Set your slider range to enclose that region. Adjust the smoothing sigma "
-    "if the curvature looks too noisy."
-)
-
+# ─────────────────────────────────────────────────────────────────────────────
 # CALCULATION
+# ─────────────────────────────────────────────────────────────────────────────
 
 st.markdown("---")
-if st.button("Start calculation"):
+if st.button("▶  Start calculation"):
 
-    # recompute in case transition changed
     modified_function = compute_modified(data['f(R)'].values, energy, transition)
     x_fit = np.linspace(1.6, 6.2, 100)
 
-    # Tauc fit
+    # ── Tauc fit ──────────────────────────────────────────────────────────────
     with st.spinner("Finding linear region for Tauc fit..."):
-        result_tauc = method_derivative(
-            energy, modified_function,
-            tauc_fit_range[0], tauc_fit_range[1],
-            int(min_pts_tauc), sigma, threshold_pct
-        )
+        result_tauc = find_linear_region(energy, modified_function, window_pts)
 
     if result_tauc is None:
-        st.error("Tauc fit failed: no linear region found in the selected range. "
-                 "Try widening the range, lowering the min points, or raising the threshold.")
+        st.error("Tauc fit failed: no valid rising linear region found. "
+                 "Try adjusting the window width.")
         st.stop()
 
     slope_tauc, intercept_tauc, r2_tauc, size_tauc, x_best_tauc, y_best_tauc = result_tauc
     y_pred_tauc = slope_tauc * x_fit + intercept_tauc
 
-    # Makula fit 
+    # ── Makula fit ────────────────────────────────────────────────────────────
+    # Makula baseline sits below the Tauc linear region — score without slope²
+    # so it can find shallower but well-fitting segments outside the Tauc region
     with st.spinner("Finding linear region for Makula fit..."):
-        result_m = method_derivative(
-            energy, modified_function,
-            makula_fit_range[0], makula_fit_range[1],
-            int(min_pts_makula), sigma, threshold_pct
+        # exclude the Tauc region so Makula finds a different segment
+        tauc_start_e = x_best_tauc[0]
+        tauc_end_e   = x_best_tauc[-1]
+
+        # mask out the Tauc region from the search
+        energy_m = energy.copy()
+        mod_m    = modified_function.copy()
+        exclude  = (energy_m >= tauc_start_e) & (energy_m <= tauc_end_e)
+        # set excluded region to NaN so the sliding window avoids it
+        mod_m_search = mod_m.copy().astype(float)
+        mod_m_search[exclude] = np.nan
+
+        # sliding window for Makula — score by R² only (shallower baseline region)
+        n = len(energy_m)
+        best_score_m = -np.inf
+        best_idx_m   = None
+        mod_smooth_m = gaussian_filter1d(
+            np.where(np.isfinite(mod_m_search), mod_m_search, 0.0), sigma=2
         )
 
-    if result_m is None:
-        st.error("Makula fit failed: no linear region found in the selected range. "
-                 "Try widening the range, lowering the min points, or raising the threshold.")
+        for i in range(n - window_pts + 1):
+            xb = energy_m[i : i + window_pts]
+            yb_orig = mod_m_search[i : i + window_pts]
+            yb      = mod_smooth_m[i : i + window_pts]
+
+            # skip windows that overlap the excluded Tauc region
+            if np.any(np.isnan(yb_orig)):
+                continue
+
+            slope_w, intercept_w = np.polyfit(xb, yb, 1)
+            ss_res = np.sum((yb - (slope_w * xb + intercept_w)) ** 2)
+            ss_tot = np.sum((yb - yb.mean()) ** 2)
+            if ss_tot == 0:
+                continue
+
+            r2_w  = 1.0 - ss_res / ss_tot
+            # score: R² × length, no slope penalty so baseline is found too
+            score = r2_w * window_pts
+
+            if score > best_score_m:
+                best_score_m = score
+                best_idx_m   = i
+
+    if best_idx_m is None:
+        st.error("Makula fit failed: no valid linear baseline region found outside "
+                 "the Tauc region. Try adjusting the window width.")
         st.stop()
 
-    slope_m, intercept_m, r2_m, size_m, x_best_m, y_best_m = result_m
+    xb_m = energy_m[best_idx_m : best_idx_m + window_pts]
+    yb_m = mod_m[best_idx_m : best_idx_m + window_pts]
+    slope_m, intercept_m = np.polyfit(xb_m, yb_m, 1)
+    ss_res_m = np.sum((yb_m - (slope_m * xb_m + intercept_m)) ** 2)
+    ss_tot_m = np.sum((yb_m - yb_m.mean()) ** 2)
+    r2_m   = 1.0 - ss_res_m / ss_tot_m if ss_tot_m > 0 else 0.0
+    size_m = window_pts
+    x_best_m, y_best_m = xb_m.copy(), yb_m.copy()
     y_pred_m = slope_m * x_fit + intercept_m
 
-    # Intersections
+    # ── Intersections ─────────────────────────────────────────────────────────
     intersection_tauc   = round(-intercept_tauc / slope_tauc, 3)
-    intersection_makula = round((intercept_m - intercept_tauc) / (slope_tauc - slope_m), 3)
+    intersection_makula = round(
+        (intercept_m - intercept_tauc) / (slope_tauc - slope_m), 3
+    )
 
-    # Results summary
+    # ── Results ───────────────────────────────────────────────────────────────
     st.header("Results")
-
     res_col1, res_col2 = st.columns(2)
     with res_col1:
         st.metric("Bandgap — Tauc x-axis intercept", f"{intersection_tauc} eV")
-        st.write(f"R² = {r2_tauc:.6f} | points used = {size_tauc}")
+        st.write(f"R² = {r2_tauc:.6f} | points = {size_tauc}")
         st.write(f"Slope = {slope_tauc:.4f} | Intercept = {intercept_tauc:.4f}")
+        st.write(f"Region: {x_best_tauc[0]:.3f} – {x_best_tauc[-1]:.3f} eV")
     with res_col2:
         st.metric("Bandgap — Makula intersection", f"{intersection_makula} eV")
-        st.write(f"R² = {r2_m:.6f} | points used = {size_m}")
+        st.write(f"R² = {r2_m:.6f} | points = {size_m}")
         st.write(f"Slope = {slope_m:.4f} | Intercept = {intercept_m:.4f}")
+        st.write(f"Region: {x_best_m[0]:.3f} – {x_best_m[-1]:.3f} eV")
 
-    # plot
+    # ── Final plot ────────────────────────────────────────────────────────────
     st.subheader("Final Plot")
     final_fig, ax = plt.subplots(figsize=(10, 6))
 
     ax.scatter(energy, modified_function, s=6, color='steelblue', label='Data')
-    ax.scatter(x_best_tauc, y_best_tauc, color='orange', s=10, zorder=3,
-               label=f'Tauc linear region ({size_tauc} pts)')
-    ax.scatter(x_best_m, y_best_m, color='limegreen', s=10, zorder=3,
-               label=f'Makula linear region ({size_m} pts)')
+    ax.scatter(x_best_tauc, y_best_tauc, color='orange', s=12, zorder=3,
+               label=f'Tauc linear region ({size_tauc} pts, '
+                     f'{x_best_tauc[0]:.2f}–{x_best_tauc[-1]:.2f} eV)')
+    ax.scatter(x_best_m, y_best_m, color='limegreen', s=12, zorder=3,
+               label=f'Makula linear region ({size_m} pts, '
+                     f'{x_best_m[0]:.2f}–{x_best_m[-1]:.2f} eV)')
     ax.plot(x_fit, y_pred_tauc, color='red', linewidth=1.5,
             label=f'Tauc fit  R²={r2_tauc:.4f}  →  {intersection_tauc} eV')
     ax.plot(x_fit, y_pred_m, color='red', linewidth=1.5, linestyle='--',
@@ -270,10 +266,10 @@ if st.button("Start calculation"):
     ax.set_xticks(np.arange(1.0, 7.0, 0.5))
     ax.set_ylim([0, 10]); ax.set_xlim([1.6, 6.2])
     ax.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc="lower left",
-              mode="expand", borderaxespad=0, ncol=3, fancybox=True)
+              mode="expand", borderaxespad=0, ncol=2, fancybox=True)
     st.pyplot(final_fig)
 
-    # Downloads
+    # ── Downloads ─────────────────────────────────────────────────────────────
     img_bytes = io.BytesIO()
     final_fig.savefig(img_bytes, format="png", dpi=300, bbox_inches='tight')
     img_bytes.seek(0)
@@ -286,24 +282,24 @@ if st.button("Start calculation"):
 
     text_contents = f"""UV-Vis Analysis Results
 =======================
-Method: Derivative-based (curvature) — sigma={sigma}, threshold={threshold_pct}%
+Window width: {window_pts} points
 
 Bandgap (Tauc x-axis intercept): {intersection_tauc} eV
 Bandgap (Makula intersection):   {intersection_makula} eV
 
 Tauc fit:
-  Range:     {tauc_fit_range[0]} – {tauc_fit_range[1]} eV
+  Region:    {x_best_tauc[0]:.3f} – {x_best_tauc[-1]:.3f} eV
   R2:        {r2_tauc}
   Points:    {size_tauc}
   Slope:     {slope_tauc}
   Intercept: {intercept_tauc}
 
 Makula fit:
-  Range:     {makula_fit_range[0]} – {makula_fit_range[1]} eV
+  Region:    {x_best_m[0]:.3f} – {x_best_m[-1]:.3f} eV
   R2:        {r2_m}
   Points:    {size_m}
   Slope:     {slope_m}
   Intercept: {intercept_m}
 """
-    st.download_button("⬇ Download values (TXT)", data=text_contents,
+    st.download_button("Download values (TXT)", data=text_contents,
                        file_name=f'{fname}.txt', mime="text/plain")
