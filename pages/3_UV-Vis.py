@@ -5,14 +5,14 @@ import pandas as pd
 import streamlit as st
 from sklearn.linear_model import LinearRegression
 
-# configure pagestyle
+# page config 
+st.set_page_config(
+    page_title="UV-Vis analysis tool",
+    page_icon="📈",
+    layout="wide",
+)
 
-st.set_page_config(page_title=":chart_with_upwards_trend: Plotting and fitting UV-Vis data", page_icon="chart_with_upwards_trend", layout="wide")
-
-st.header(":chart_with_upwards_trend: UV-Vis data fitting and plotting")
-
-st.markdown('This file was created to fit Tauc plots as well as y-offsets for your UV-Vis data. Your data can be used directly from the device as a .csv file!')
-st.markdown('If you see the running symbol on the right corner, the programm is still calculating or working, **be patient!** Keep in mind, this program will overwrite your data without asking for permission if you select already existing filenames!')
+st.title("📈 UV-Vis analysis tool")
 
 # build file uploader and make dataframe from uploaded file
 uploaded_file = st.file_uploader("Choose a file")
@@ -294,4 +294,5 @@ Best subset size: {best_subset_size_m}
 Intercept: {intercept_m}
 Slope: {slope_m}
 '''
+
     st.download_button('Download values as text', text_contents, file_name=f'{name_of_file}',mime="text")
