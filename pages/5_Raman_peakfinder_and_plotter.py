@@ -6,7 +6,7 @@ import matplotlib.ticker as ticker
 import streamlit as st
 from scipy.signal import find_peaks, savgol_filter
 
-# ── page config ────────────────────────────────────────────────────────────────
+# page config 
 st.set_page_config(
     page_title="Raman Peakfinder",
     page_icon="🔬",
@@ -15,7 +15,7 @@ st.set_page_config(
 
 st.title("🔬 Raman Peakfinder & Plotter")
 
-# ── helpers ────────────────────────────────────────────────────────────────────
+# helpers
 
 @st.cache_data
 def load_file(file_bytes: bytes, filename: str) -> pd.DataFrame:
@@ -130,7 +130,7 @@ def build_figure(
 
 # ── sidebar controls ───────────────────────────────────────────────────────────
 with st.sidebar:
-    st.header("⚙️ Settings")
+    st.header("Analysis Settings")
 
     st.subheader("Smoothing")
     apply_filter = st.checkbox("Apply Savitzky-Golay Filter", value=False)
@@ -162,7 +162,7 @@ with st.sidebar:
     font_size = st.slider("Font Size", 8, 18, 12)
     plot_dpi = st.select_slider("Export DPI", [150, 300, 600, 1200], value=300)
 
-# ── file upload ────────────────────────────────────────────────────────────────
+# file upload 
 uploaded_files = st.file_uploader(
     "Upload one or more Raman data files (.txt, two tab-separated columns)",
     type=["txt"],
@@ -173,7 +173,7 @@ if not uploaded_files:
     st.info("Upload a Raman .txt file to get started.")
     st.stop()
 
-# ── process each file ──────────────────────────────────────────────────────────
+# process each file
 datasets = []
 all_peaks = []
 
@@ -209,7 +209,7 @@ for idx, uf in enumerate(uploaded_files):
     }
     datasets.append(ds)
 
-# ── per-file peak threshold (shown after loading) ──────────────────────────────
+# per-file peak threshold (shown after loading)
 st.subheader("Peak Intensity Threshold (per file)")
 threshold_cols = st.columns(min(len(datasets), 3))
 
@@ -242,7 +242,7 @@ for idx, ds in enumerate(datasets):
         for w, i in zip(px, py):
             all_peaks.append({"File": ds["label"], "Wavenumber (cm⁻¹)": round(w, 1), "Intensity": round(i, 2)})
 
-# ── plot ───────────────────────────────────────────────────────────────────────
+# plot 
 fig = build_figure(
     datasets,
     xlim=(x_min, x_max),
@@ -259,13 +259,13 @@ st.pyplot(fig, use_container_width=True)
 
 col1, col2 = st.columns(2)
 col1.download_button(
-    "⬇️ Download Plot (PNG)",
+    "Download Plot (PNG)",
     data=img_buf,
     file_name="raman_plot.png",
     mime="image/png",
 )
 
-# ── peak table ─────────────────────────────────────────────────────────────────
+# peak table 
 if all_peaks:
     st.subheader("Detected Peaks")
     peak_df = pd.DataFrame(all_peaks).sort_values(["File", "Wavenumber (cm⁻¹)"])
@@ -273,8 +273,9 @@ if all_peaks:
 
     csv_buf = peak_df.to_csv(index=False).encode()
     col2.download_button(
-        "⬇️ Download Peaks (CSV)",
+        "Download Peaks (CSV)",
         data=csv_buf,
         file_name="raman_peaks.csv",
         mime="text/csv",
     )
+
