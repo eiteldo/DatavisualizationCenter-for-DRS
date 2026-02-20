@@ -3,19 +3,19 @@ from PIL import Image
 
 st.set_page_config(page_title="Welcome", page_icon="👋", layout='wide')
 
-st.header("👋 Welcome to the data-center for visualizing and fitting your data!")
+st.header("👋 Welcome to the datacenter for visualizing and fitting your research data!")
 
 
 
 
 st.markdown( '''
-    This site does contain apps for fitting and visualizing your data. For now, you can fit and plot your UV-Vis data as well as Raman data.
-    In the future other options will be added.
+    This site contains small apps for fitting and visualizing research data by eliminating user errors and making work easier. For now, you can fit and plot UV-Vis data, Raman data and analyze layered structures from TEM images.
+    In the future other options might be added.
     
     ### Need some more information?
             
-    - Be patient while the calculations are running!
-    - If you want to download images and text files, download the first and run the calculation again, then download the second. 
-    The results will be the same unless you change your input variables!'''
+    - Be patient while the calculations are running! Depending on the dataset, calculations might take some time.
+    - Make sure your data is in an appropriate format in order to be plotted.'''
             )
+
 
