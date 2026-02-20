@@ -71,7 +71,6 @@ def analyze_layer_periodicity(peaks, px_to_nm):
     return {"avg_distance": avg, "std_distance": std, "distances": distances_nm, "regularity_score": reg}
 
 
-
 def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_analysis,
                  px_to_nm, figure_size=(15, 5)):
     sns.set_style("dark")
@@ -79,7 +78,6 @@ def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_anal
 
     y_positions = [r["y_pos"] for r in scan_results]
     scores = [r["score"] for r in scan_results]
-    peak_counts = [r["num_peaks"] for r in scan_results]
 
     # Original image
     ax1 = fig.add_subplot(1, 3, 1)
@@ -104,7 +102,6 @@ def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_anal
     ax2.set_title(f"Layer Profile ({len(peaks)} peaks)")
     ax2.grid(True, linestyle="--", color="gray", alpha=0.3)
 
- 
     # Stats text
     ax3 = fig.add_subplot(1, 3, 3)
     ax3.axis("off")
@@ -124,7 +121,6 @@ def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_anal
         f"  {px_to_nm:.4f} nm/px\n"
         f"  Scan lines tested : {len(scan_results)}"
     )
-                     
     ax3.text(0.05, 0.95, stats, transform=ax3.transAxes, fontsize=9,
              verticalalignment="top", fontfamily="monospace",
              bbox=dict(boxstyle="round", facecolor="lightgray", alpha=0.8))
@@ -133,33 +129,36 @@ def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_anal
     return fig
 
 
-
 def run_tem_analysis():
-    """Render the TEM greyscale analysis section inside a Streamlit app."""
-
     st.header("TEM Greyscale Profile Analyzer")
 
-    # Sidebar / expander for settings
-    with st.expander("Analysis Settings", expanded=False):
-        col1, col2 = st.columns(2)
-        with col1:
-            scale_nm = st.number_input(
-                "Scale bar length (nm)", value=64.29, min_value=0.01, step=0.01,
-                help="Physical length represented by the scale bar")
-            scale_px = st.number_input(
-                "Scale bar length (px)", value=2048, min_value=1, step=1,
-                help="Pixel length of the scale bar")
-            n_scan_lines = st.slider("Scan lines to test", 5, 50, 20)
-        with col2:
-            filter_window = st.slider("Savitzky-Golay window", 3, 51, 10, step=2)
-            filter_order = st.slider("Savitzky-Golay order", 1, 5, 2)
-            prominence_factor = st.slider(
-                "Peak prominence factor", 0.05, 0.8, 0.30, step=0.05,
-                help="Fraction of dynamic range used as minimum peak prominence")
+    # Sidebar settings
+    with st.sidebar:
+        st.header("Analysis Settings")
+
+        st.subheader("Scale")
+        scale_nm = st.number_input(
+            "Scale bar length (nm)", value=64.29, min_value=0.01, step=0.01,
+            help="Physical length represented by the scale bar")
+        scale_px = st.number_input(
+            "Scale bar length (px)", value=2048, min_value=1, step=1,
+            help="Pixel length of the scale bar")
+
+        st.subheader("Scan Lines")
+        n_scan_lines = st.slider("Lines to test", 5, 50, 20)
+
+        st.subheader("Smoothing")
+        filter_window = st.slider("Savitzky-Golay window", 3, 51, 10, step=2)
+        filter_order = st.slider("Savitzky-Golay order", 1, 5, 2)
+
+        st.subheader("Peak Detection")
+        prominence_factor = st.slider(
+            "Prominence factor", 0.05, 0.8, 0.30, step=0.05,
+            help="Fraction of dynamic range used as minimum peak prominence")
 
     px_to_nm = scale_nm / scale_px
 
-    # File upload 
+    # File upload
     uploaded = st.file_uploader(
         "Upload TEM image", type=["jpg", "jpeg", "png", "tif", "tiff", "bmp"])
 
@@ -169,7 +168,7 @@ def run_tem_analysis():
 
     file_bytes = uploaded.read()
 
-    # ── Run analysis ──────────────────────────────────────────────────────
+    # Run analysis
     with st.spinner("Running automated scan-line analysis…"):
         try:
             img = load_image_from_bytes(file_bytes)
@@ -187,19 +186,16 @@ def run_tem_analysis():
         fig = build_figure(img, optimal_y, smoothed_slice, peaks,
                            scan_results, layer_analysis, px_to_nm)
 
-    # ── Display figure ────────────────────────────────────────────────────
+    # Display
     st.pyplot(fig)
     plt.close(fig)
 
-    # ── Key metrics row ───────────────────────────────────────────────────
     m1, m2, m3 = st.columns(3)
     m1.metric("Optimal scan line", f"y = {optimal_y} px")
     m2.metric("Peaks detected", len(peaks))
     m3.metric("Avg layer spacing",
               f"{layer_analysis['avg_distance']:.2f} nm" if layer_analysis["avg_distance"] else "—")
 
-
-    # Detailed peak table
     if len(peaks) > 0:
         with st.expander("Peak Details", expanded=False):
             import pandas as pd
@@ -216,9 +212,9 @@ def run_tem_analysis():
                 }
                 for i, p in enumerate(peaks)
             ]
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(rows), hide_index=True)
 
-    # Image download
+    # Download
     buf = io.BytesIO()
     fig_dl = build_figure(img, optimal_y, smoothed_slice, peaks,
                           scan_results, layer_analysis, px_to_nm)
