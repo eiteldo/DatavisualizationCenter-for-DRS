@@ -73,7 +73,7 @@ def analyze_layer_periodicity(peaks, px_to_nm):
 
 
 def build_figure(img, optimal_y, smoothed_slice, peaks, scan_results, layer_analysis,
-                 px_to_nm, figure_size=(15, 10)):
+                 px_to_nm, figure_size=(15, 5)):
     sns.set_style("dark")
     fig = plt.figure(figsize=figure_size)
 
@@ -192,13 +192,12 @@ def run_tem_analysis():
     plt.close(fig)
 
     # ── Key metrics row ───────────────────────────────────────────────────
-    m1, m2, m3, m4 = st.columns(4)
+    m1, m2, m3 = st.columns(3)
     m1.metric("Optimal scan line", f"y = {optimal_y} px")
     m2.metric("Peaks detected", len(peaks))
     m3.metric("Avg layer spacing",
               f"{layer_analysis['avg_distance']:.2f} nm" if layer_analysis["avg_distance"] else "—")
-    m4.metric("Regularity score",
-              f"{layer_analysis['regularity_score']:.1f}" if layer_analysis["avg_distance"] else "—")
+
 
     # Detailed peak table
     if len(peaks) > 0:
